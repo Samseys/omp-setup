@@ -33,8 +33,15 @@ const APPEND_FILE = join(ROOT, "append-system.md");
 const APPEND_NAME = "APPEND_SYSTEM.md";
 /** Chiavi di mcp.json sincronizzate: i server con credenziali negli env restano locali. */
 const MCP_KEYS = ["disabledServers"];
-/** Stato e percorsi di questa macchina: non hanno senso su un'altra. */
-const SKIP_KEYS = ["shellPath", "setupVersion", "dev.autoqaConsent"];
+/** Stato e percorsi di questa macchina: non hanno senso su un'altra. Le due
+ * liste di percorsi le scrive `install.mjs`, che sa dov'è il clone. */
+const SKIP_KEYS = [
+	"shellPath",
+	"setupVersion",
+	"dev.autoqaConsent",
+	"skills.customDirectories",
+	"extensions",
+];
 // Solo l'ultimo segmento e al singolare: `compaction.thresholdTokens` non è
 // una credenziale.
 const SECRET_KEY = /(secret|password|credential|key|token)$/i;
@@ -254,4 +261,7 @@ if (action === "apply") {
 }
 
 console.log(`\n${drift.length} voci da allineare: node scripts/sync.mjs apply`);
+// Riga per l'estensione: leggere le righe decorate significherebbe accordarsi
+// su un glifo e su una lingua.
+console.log(`DERIVA=${drift.join(",")}`);
 process.exit(1);

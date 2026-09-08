@@ -42,8 +42,10 @@ Se le differenze sono di segno misto (una chiave da tenere, un'altra da buttare)
 ```sh
 git clone https://github.com/Samseys/omp-setup.git && cd omp-setup
 node scripts/sync.mjs apply
-node scripts/install.mjs     # installa questa skill + l'avviso di deriva
+node scripts/install.mjs     # registra il clone: questa skill + l'avviso di deriva
 ```
+
+Skill, script ed estensione girano dal clone: per aggiornarli basta `git pull`.
 
 ## Cosa copre
 

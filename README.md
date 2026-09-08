@@ -12,8 +12,9 @@ Non è una copia di `~/.omp/agent/config.yml` (che contiene anche percorsi e sta
 | `plugins.json` | marketplace registrati + plugin a scope user |
 | `skills/setup-omp/SKILL.md` | skill `/skill:setup-omp` |
 | `extensions/config-sync.ts` | avviso a inizio sessione se la macchina è fuori sync |
+| `extensions/installed-stub.ts` | l'unico file copiato fuori dal clone: importa e chiama il precedente |
 | `scripts/sync.mjs` | `check` / `apply` / `capture` |
-| `scripts/install.mjs` | installa skill + estensione, registra il percorso del clone |
+| `scripts/install.mjs` | registra il clone: cartella delle skill + stub dell'estensione |
 
 ## Macchina nuova
 
@@ -37,7 +38,13 @@ Nessuna delle due direzioni è automatica: una chiave diversa non dice se è sta
 
 `extensions/config-sync.ts` gira a ogni `session_start`, non scrive niente e non fa rete: confronta e avvisa. `/skill:setup-omp` (installata a scope user, quindi disponibile in ogni cartella) fa `git pull`, riassume la deriva e chiede la direzione.
 
-`node scripts/install.mjs --uninstall` rimuove skill, estensione e marcatore. Skill ed estensione sono installate per copia: dopo averle modificate, rilanciare `install.mjs`.
+## Aggiornare
+
+`git pull` basta: script, skill ed estensione girano dal clone. `install.mjs` non copia niente eccetto lo stub — punta `skills.customDirectories` su `<clone>/skills` e scrive il percorso del clone in `~/.omp/agent/config-sync.json`. Va rilanciato solo se il clone cambia posizione, o dopo una modifica a `installed-stub.ts`.
+
+Lo stub esiste perché omp consegna gli eventi di sessione solo agli hook trovati nelle cartelle di discovery (`<agent-dir>/extensions`, `<cwd>/.omp/extensions`): un percorso dichiarato nell'impostazione `extensions` viene caricato, ma i suoi `pi.on(...)` non ricevono niente. Copiato in `~/.omp/agent/extensions/`, legge il marcatore e importa `extensions/config-sync.ts` dal clone.
+
+`node scripts/install.mjs --uninstall` rimuove stub, marcatore e cartella delle skill dalle impostazioni.
 
 ## `capture` esclude i default
 
