@@ -10,32 +10,40 @@ Non è una copia di `~/.omp/agent/config.yml`: quel file contiene anche percorsi
 | `mcp-subset.json` | le chiavi di `mcp.json` condivisibili (oggi i server disattivati) |
 | `append-system.md` | il contesto appeso al system prompt di ogni sessione (`~/.omp/agent/APPEND_SYSTEM.md`) |
 | `plugins.json` | marketplace registrati + plugin installati a livello utente |
-| `extensions/config-sync.ts` | l'estensione omp che sincronizza da sé a ogni sessione |
+| `skills/setup-omp/SKILL.md` | la skill `/skill:setup-omp`, il modo comodo di allineare |
+| `extensions/config-sync.ts` | avviso a inizio sessione quando la macchina si discosta dal repo |
 | `scripts/sync.mjs` | il motore: `check` / `apply` / `capture` |
-| `scripts/install.mjs` | aggancia il clone a omp (copia l'estensione, registra il percorso) |
+| `scripts/install.mjs` | aggancia il clone a omp (skill + avviso + percorso del clone) |
 
 ## Su una macchina nuova
 
 ```sh
 git clone <questo repo> && cd omp-config
 node scripts/sync.mjs apply     # allinea impostazioni, mcp, contesto, plugin
-node scripts/install.mjs        # da qui in poi si aggiorna da sé
+node scripts/install.mjs        # skill + avviso di deriva
 ```
 
-Poi riapri omp: impostazioni, provider, plugin ed estensioni si leggono all'avvio.
+Poi riapri omp: impostazioni, provider, plugin, skill ed estensioni si leggono all'avvio.
 
-## Sincronizzazione automatica
+## Uso quotidiano
 
-`scripts/install.mjs` copia `extensions/config-sync.ts` in `~/.omp/agent/extensions/` e scrive in `~/.omp/agent/config-sync.json` il percorso del clone. A ogni `session_start`, in qualunque cartella, l'estensione fa `git pull --ff-only` sul clone (non più di una volta ogni 6 ore, `--every=<ore>`, `0` = sempre) e applica la deriva, poi avvisa cosa è cambiato.
+Niente si applica da sé: **la direzione la decido io**. Non esiste un criterio onesto per dedurla — una chiave diversa non dice se l'ho cambiata qui di proposito o se è rimasta indietro rispetto a un'altra macchina, e indovinare significa o perdere una modifica appena fatta o propagare una prova.
 
-Il pull è solo fast-forward: un merge da risolvere non si fa all'avvio di una sessione. Con `--check-only` l'estensione segnala la deriva senza toccare niente; `--uninstall` la rimuove.
+Automatico è invece **accorgersene**: `extensions/config-sync.ts` gira a ogni `session_start`, non scrive niente e non fa rete, e avvisa se la macchina si è discostata dal repo. Da lì basta:
 
-**Il repo è la fonte di verità.** Una modifica fatta a mano sulla macchina viene riportata indietro alla prossima sessione, a meno che non la si catturi:
+```
+/skill:setup-omp
+```
+
+La skill è installata a livello utente, quindi risponde in qualunque cartella: legge la deriva, la riassume e chiede da che parte tirare.
 
 ```sh
-node scripts/sync.mjs capture --all   # rilegge tutto il setup locale
-git commit -am "config: …" && git push
+node scripts/sync.mjs                 # cosa differisce (esce 1 se c'è deriva)
+node scripts/sync.mjs apply           # repo → macchina
+node scripts/sync.mjs capture --all   # macchina → repo, poi commit e push
 ```
+
+`node scripts/install.mjs --uninstall` toglie skill, avviso e marcatore.
 
 ## `capture` esclude i default
 
