@@ -66,18 +66,27 @@ export async function onSessionStart(
 /** Vero da quando l'avviso è comparso: vale per questa sessione. */
 let warned = false;
 
-/** I file che il repo sincronizza, gli unici che vale la pena guardare. */
-const WATCHED = ["config.yml", "mcp.json", "APPEND_SYSTEM.md"];
+/** Lato macchina: i tre file che il repo sincronizza. */
+const WATCHED_LOCAL = ["config.yml", "mcp.json", "APPEND_SYSTEM.md"];
+/** Lato repo: un `capture` o un `git pull` cambia questi, non il config.yml. */
+const WATCHED_REPO = [
+	"agent-config.json",
+	"mcp-subset.json",
+	"append-system.md",
+	"plugins.json",
+];
 
 /** Contenuto dei file guardati: pochi KB, e distingue una modifica da un tocco. */
-function snapshot(agentDir: string): string {
-	return WATCHED.map(name => {
-		try {
-			return readFileSync(join(agentDir, name), "utf8");
-		} catch {
-			return "";
-		}
-	}).join("\u0000");
+function snapshot(paths: string[]): string {
+	return paths
+		.map(path => {
+			try {
+				return readFileSync(path, "utf8");
+			} catch {
+				return "";
+			}
+		})
+		.join("\u0000");
 }
 
 /**
@@ -88,7 +97,11 @@ function snapshot(agentDir: string): string {
  * Un watch sulla *cartella* dell'agente non si può fare: lì stanno `agent.db`,
  * `history.db` e `models.db` coi loro `-wal`, riscritti in continuazione,
  * quindi il controllo girerebbe a ogni finestra di debounce per tutta la
- * sessione. Guardando i tre file il costo a riposo è zero.
+ * sessione. Guardando i singoli file il costo a riposo è zero.
+ *
+ * Il clone va guardato quanto la macchina: un `capture` non tocca il
+ * `config.yml`, quindi senza quei file la riga resterebbe sull'avviso fino
+ * alla riapertura proprio dopo aver risolto la deriva.
  */
 function watchConfig(
 	pi: HookAPI,
@@ -97,9 +110,15 @@ function watchConfig(
 	behind: number,
 	agentDir: string,
 ): void {
+	// Le due direzioni cambiano file diversi: `apply` e `/settings` toccano la
+	// cartella dell'agente, `capture` e `git pull` toccano il clone.
+	const paths = [
+		...WATCHED_LOCAL.map(name => join(agentDir, name)),
+		...WATCHED_REPO.map(name => join(repo, name)),
+	];
 	let timer: NodeJS.Timeout | undefined;
 	let running = false;
-	let seen = snapshot(agentDir);
+	let seen = snapshot(paths);
 	const schedule = (): void => {
 		// Un salvataggio produce più eventi e il controllo costa uno spawn di
 		// `omp config list`: si aspetta che il file si fermi.
@@ -108,7 +127,7 @@ function watchConfig(
 			if (running) return;
 			// omp ritocca `mcp.json` e `APPEND_SYSTEM.md` all'avvio senza cambiarli:
 			// senza questo confronto ogni sessione pagherebbe un controllo in più.
-			const now = snapshot(agentDir);
+			const now = snapshot(paths);
 			if (now === seen) return;
 			seen = now;
 			running = true;
@@ -122,10 +141,10 @@ function watchConfig(
 		}, 1_500);
 	};
 
-	for (const name of WATCHED) {
+	for (const path of paths) {
 		try {
 			// Il watcher non deve tenere in vita il processo all'uscita.
-			watch(join(agentDir, name), schedule).unref();
+			watch(path, schedule).unref();
 		} catch {
 			// File non ancora scritto (mcp.json, APPEND_SYSTEM.md): niente da guardare.
 		}
