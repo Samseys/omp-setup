@@ -12,7 +12,10 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { pathToFileURL } from "node:url";
 
-type HookContext = { hasUI: boolean; ui: { notify(message: string): void } };
+type HookContext = {
+	hasUI: boolean;
+	ui: { setStatus(key: string, text: string): void };
+};
 
 type HookAPI = {
 	logger: { warn(message: string): void };

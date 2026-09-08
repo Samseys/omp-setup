@@ -12,7 +12,7 @@ type ExecResult = { code: number; stdout?: string; stderr?: string };
 
 type HookContext = {
 	hasUI: boolean;
-	ui: { notify(message: string): void };
+	ui: { setStatus(key: string, text: string): void };
 };
 
 type HookAPI = {
@@ -56,11 +56,6 @@ export async function onSessionStart(
 	// Skill, estensione e script girano dal clone: se è indietro, questa
 	// macchina sta usando la versione vecchia di tutti e tre.
 	const behind = await countBehind(pi, repo);
-	if (behind > 0 && ctx.hasUI) {
-		ctx.ui.notify(
-			`Il repo del setup omp è indietro di ${behind} commit. \`git pull\` in ${repo}.`,
-		);
-	}
 
 	const run = await pi.exec("node", [join("scripts", "sync.mjs")], {
 		cwd: repo,
@@ -79,11 +74,59 @@ export async function onSessionStart(
 	const changed = (marker?.slice("DERIVA=".length) ?? "")
 		.split(",")
 		.filter(Boolean);
-	if (changed.length === 0) return;
-
-	pi.logger.info(`config-sync: deriva su ${changed.join(", ")}`);
+	if (changed.length === 0 && behind === 0) return;
+	if (changed.length > 0) {
+		pi.logger.info(`config-sync: deriva su ${changed.join(", ")}`);
+	}
+	// Solo status line: un `notify` arriva mentre lo schermo si sta ancora
+	// componendo e poi passa, quindi chi cambia un'impostazione non vede niente.
 	if (!ctx.hasUI) return;
-	ctx.ui.notify(
-		`Setup omp diverso dal repo (${changed.join(", ")}). Usa /skill:setup-omp per allineare in una direzione o nell'altra.`,
+	ctx.ui.setStatus("config-sync", statusText(changed, behind));
+}
+
+type Kind = "impostazione" | "mcp" | "marketplace" | "plugin" | "contesto";
+
+/** Ordine di lettura, singolare e plurale di ogni tipo di voce in deriva. */
+const KINDS: Array<{ kind: Kind; one: string; many: string }> = [
+	{ kind: "impostazione", one: "impostazione", many: "impostazioni" },
+	{ kind: "mcp", one: "chiave MCP", many: "chiavi MCP" },
+	{ kind: "marketplace", one: "marketplace", many: "marketplace" },
+	{ kind: "plugin", one: "plugin", many: "plugin" },
+	{ kind: "contesto", one: "contesto di sistema", many: "contesto di sistema" },
+];
+
+function kindOf(item: string): Kind {
+	if (item.startsWith("mcp.")) return "mcp";
+	if (item.startsWith("marketplace ")) return "marketplace";
+	if (item.startsWith("plugin ")) return "plugin";
+	if (item.startsWith("APPEND_SYSTEM")) return "contesto";
+	return "impostazione";
+}
+
+/**
+ * La status line è larga poche decine di caratteri e va letta di sfuggita:
+ * `browser.headless, task.maxConcurrency +3` dice quali chiavi senza dire cosa
+ * è successo, e i nomi lunghi mangiano lo spazio prima del suggerimento. Qui si
+ * dice quante voci e di che tipo; quali sono le mostra la skill.
+ */
+function statusText(changed: string[], behind: number): string {
+	const counts: Record<Kind, number> = {
+		impostazione: 0,
+		mcp: 0,
+		marketplace: 0,
+		plugin: 0,
+		contesto: 0,
+	};
+	for (const item of changed) counts[kindOf(item)] += 1;
+
+	const parts = KINDS.filter(({ kind }) => counts[kind] > 0).map(
+		({ kind, one, many }) =>
+			`${counts[kind]} ${counts[kind] === 1 ? one : many}`,
 	);
+	if (behind > 0) parts.push(`⇣ ${behind} commit`);
+
+	// Colore niente: la status line strippa le sequenze ANSI. Restano i glifi, e
+	// gli spazi ripetuti li collassa la sanificazione: i separatori sono
+	// caratteri veri.
+	return `⚠ setup omp ▏ ${parts.join(" · ")} da allineare ▏ /skill:setup-omp`;
 }

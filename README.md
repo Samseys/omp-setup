@@ -36,7 +36,7 @@ node scripts/sync.mjs capture --all   # macchina → repo, poi commit e push
 
 Nessuna delle due direzioni è automatica: una chiave diversa non dice se è stata cambiata qui di proposito o se è rimasta indietro rispetto a un'altra macchina.
 
-`extensions/config-sync.ts` gira a ogni `session_start`, non scrive niente e non fa rete: confronta e avvisa. `/skill:setup-omp` (installata a scope user, quindi disponibile in ogni cartella) fa `git pull`, riassume la deriva e chiede la direzione.
+`extensions/config-sync.ts` gira a ogni `session_start`, non scrive niente e non fa rete: confronta e avvisa. L'avviso è una voce nella status line (`⚠ setup omp ▏ 5 impostazioni da allineare ▏ /skill:setup-omp`), che resta finché la sessione è aperta: un `notify` arriva mentre lo schermo si sta ancora componendo e poi passa. Dice quante voci e di che tipo, non quali: i nomi delle chiavi occupano la larghezza senza spiegare niente, e l'elenco lo mostra la skill. Niente colore, la status line strippa le sequenze ANSI. Il controllo è **solo all'avvio**: una modifica fatta a sessione aperta si vede alla riapertura. `/skill:setup-omp` (installata a scope user, quindi disponibile in ogni cartella) fa `git pull`, riassume la deriva e chiede la direzione.
 
 ## Aggiornare
 
