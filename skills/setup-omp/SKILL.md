@@ -18,6 +18,8 @@ node scripts/sync.mjs       # esce 1 se c'è deriva; elenca chiave per chiave
 
 Ogni riga `✘` mostra `locale` e `atteso`. Riassumile in italiano — sono impostazioni, non output da incollare grezzo.
 
+Una riga `— non nel repo` è una chiave impostata solo qui: tipicamente un giro in `/settings`. Su quelle `apply` fa `omp config reset` (torna al default) e `capture --all` le porta nel repo. Chiedi quale delle due prima di eseguire: le due direzioni non sono equivalenti.
+
 ## 2. Scegli la direzione
 
 Chiedi all'utente quale, se non l'ha già detto, riportando le differenze:

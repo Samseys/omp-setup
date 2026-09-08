@@ -154,19 +154,21 @@ function localPlugins() {
 
 const wanted = JSON.parse(readFileSync(FILE, "utf8"));
 const local = configValues();
+const defaults = factoryDefaults();
+
+/** Locale, impostata a mano e diversa dal default: da confrontare col repo. */
+function isTracked(key) {
+	if (SKIP_KEYS.includes(key) || SECRET_KEY.test(key.split(".").pop())) return false;
+	return JSON.stringify(local[key]) !== JSON.stringify(defaults[key]);
+}
 
 if (action === "capture") {
-	const defaults = factoryDefaults();
 	const keys = scanAll ? localKeyPaths(Object.keys(defaults)) : Object.keys(wanted);
 	const captured = {};
 	const dropped = [];
 	for (const key of keys) {
-		if (SKIP_KEYS.includes(key) || SECRET_KEY.test(key.split(".").pop())) {
-			dropped.push(`${key} (locale)`);
-			continue;
-		}
-		if (JSON.stringify(local[key]) === JSON.stringify(defaults[key])) {
-			dropped.push(`${key} (default)`);
+		if (!isTracked(key)) {
+			dropped.push(key);
 			continue;
 		}
 		captured[key] = local[key];
@@ -199,6 +201,20 @@ for (const [key, want] of Object.entries(wanted)) {
 	// valido. Il resto (numeri, booleani, liste, oggetti) lo vuole in JSON.
 	const literal = typeof want === "string" ? want : JSON.stringify(want);
 	execFileSync(OMP, ["config", "set", key, literal], { stdio: "inherit" });
+}
+
+// Il confronto sulle sole chiavi del repo è cieco su quello che si cambia da
+// `/settings`: una chiave nuova non è nel repo, quindi non veniva guardata da
+// nessuno e la deriva restava invisibile.
+for (const key of localKeyPaths(Object.keys(defaults))) {
+	if (key in wanted || !isTracked(key)) continue;
+	drift.push(key);
+	console.log(`✘ ${key}: locale ${JSON.stringify(local[key])} — non nel repo`);
+	// `apply` è la direzione repo → macchina: qui vuol dire tornare al default.
+	// Per tenerla, `capture --all`.
+	if (action === "apply") {
+		execFileSync(OMP, ["config", "reset", key], { stdio: "inherit" });
+	}
 }
 
 const mcpPath = join(configDir(), "mcp.json");
