@@ -26,7 +26,8 @@ type HookAPI = {
 };
 
 // `import.meta.dirname` è `<agent-dir>/extensions`.
-const MARKER = join(dirname(import.meta.dirname), "config-sync.json");
+const AGENT_DIR = dirname(import.meta.dirname);
+const MARKER = join(AGENT_DIR, "config-sync.json");
 
 export default function hook(pi: HookAPI): void {
 	// La registrazione è sincrona: importare prima di `pi.on` rischierebbe di
@@ -48,9 +49,10 @@ export default function hook(pi: HookAPI): void {
 					pi: HookAPI,
 					ctx: HookContext,
 					repo: string,
+					agentDir: string,
 				): Promise<void>;
 			};
-			await module.onSessionStart(pi, ctx, repo);
+			await module.onSessionStart(pi, ctx, repo, AGENT_DIR);
 		} catch (error) {
 			pi.logger.warn(`config-sync: ${String(error)}`);
 		}

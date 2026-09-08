@@ -6,6 +6,7 @@
  * Girata da `extensions/installed-stub.ts`, l'unico file copiato in
  * `~/.omp/agent/extensions/`.
  */
+import { readFileSync, watch } from "node:fs";
 import { join } from "node:path";
 
 type ExecResult = { code: number; stdout?: string; stderr?: string };
@@ -52,11 +53,91 @@ export async function onSessionStart(
 	pi: HookAPI,
 	ctx: HookContext,
 	repo: string,
+	agentDir: string,
 ): Promise<void> {
 	// Skill, estensione e script girano dal clone: se è indietro, questa
-	// macchina sta usando la versione vecchia di tutti e tre.
+	// macchina sta usando la versione vecchia di tutti e tre. Si legge una volta:
+	// il conteggio cambia solo con un `git pull`.
 	const behind = await countBehind(pi, repo);
+	await refresh(pi, ctx, repo, behind);
+	if (ctx.hasUI) watchConfig(pi, ctx, repo, behind, agentDir);
+}
 
+/** Vero da quando l'avviso è comparso: vale per questa sessione. */
+let warned = false;
+
+/** I file che il repo sincronizza, gli unici che vale la pena guardare. */
+const WATCHED = ["config.yml", "mcp.json", "APPEND_SYSTEM.md"];
+
+/** Contenuto dei file guardati: pochi KB, e distingue una modifica da un tocco. */
+function snapshot(agentDir: string): string {
+	return WATCHED.map(name => {
+		try {
+			return readFileSync(join(agentDir, name), "utf8");
+		} catch {
+			return "";
+		}
+	}).join("\u0000");
+}
+
+/**
+ * Le impostazioni si cambiano a sessione aperta — da `/settings` o con
+ * `omp config set` in un altro terminale — e fra gli eventi degli hook non ce
+ * n'è uno per la configurazione: la sorgente da guardare è il file.
+ *
+ * Un watch sulla *cartella* dell'agente non si può fare: lì stanno `agent.db`,
+ * `history.db` e `models.db` coi loro `-wal`, riscritti in continuazione,
+ * quindi il controllo girerebbe a ogni finestra di debounce per tutta la
+ * sessione. Guardando i tre file il costo a riposo è zero.
+ */
+function watchConfig(
+	pi: HookAPI,
+	ctx: HookContext,
+	repo: string,
+	behind: number,
+	agentDir: string,
+): void {
+	let timer: NodeJS.Timeout | undefined;
+	let running = false;
+	let seen = snapshot(agentDir);
+	const schedule = (): void => {
+		// Un salvataggio produce più eventi e il controllo costa uno spawn di
+		// `omp config list`: si aspetta che il file si fermi.
+		clearTimeout(timer);
+		timer = setTimeout(() => {
+			if (running) return;
+			// omp ritocca `mcp.json` e `APPEND_SYSTEM.md` all'avvio senza cambiarli:
+			// senza questo confronto ogni sessione pagherebbe un controllo in più.
+			const now = snapshot(agentDir);
+			if (now === seen) return;
+			seen = now;
+			running = true;
+			refresh(pi, ctx, repo, behind)
+				.catch((error: unknown) =>
+					pi.logger.warn(`config-sync: ${String(error)}`),
+				)
+				.finally(() => {
+					running = false;
+				});
+		}, 1_500);
+	};
+
+	for (const name of WATCHED) {
+		try {
+			// Il watcher non deve tenere in vita il processo all'uscita.
+			watch(join(agentDir, name), schedule).unref();
+		} catch {
+			// File non ancora scritto (mcp.json, APPEND_SYSTEM.md): niente da guardare.
+		}
+	}
+}
+
+async function refresh(
+	pi: HookAPI,
+	ctx: HookContext,
+	repo: string,
+	behind: number,
+): Promise<void> {
 	const run = await pi.exec("node", [join("scripts", "sync.mjs")], {
 		cwd: repo,
 	});
@@ -74,14 +155,21 @@ export async function onSessionStart(
 	const changed = (marker?.slice("DERIVA=".length) ?? "")
 		.split(",")
 		.filter(Boolean);
-	if (changed.length === 0 && behind === 0) return;
 	if (changed.length > 0) {
 		pi.logger.info(`config-sync: deriva su ${changed.join(", ")}`);
 	}
 	// Solo status line: un `notify` arriva mentre lo schermo si sta ancora
 	// componendo e poi passa, quindi chi cambia un'impostazione non vede niente.
 	if (!ctx.hasUI) return;
-	ctx.ui.setStatus("config-sync", statusText(changed, behind));
+
+	if (changed.length > 0 || behind > 0) {
+		warned = true;
+		ctx.ui.setStatus("config-sync", statusText(changed, behind));
+		return;
+	}
+	// `setStatus(key, "")` non toglie la voce dalla riga, quindi il rientro va
+	// dichiarato; ma solo a chi aveva visto l'avviso, o sarebbe rumore fisso.
+	if (warned) ctx.ui.setStatus("config-sync", "✔ setup omp ▏ allineato");
 }
 
 type Kind = "impostazione" | "mcp" | "marketplace" | "plugin" | "contesto";
