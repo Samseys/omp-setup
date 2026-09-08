@@ -1,6 +1,6 @@
 ---
 name: setup-omp
-description: Allinea il setup omp di questa macchina al repo ~/Desktop/omp-config (o viceversa) — impostazioni, mcp.json, contesto di sistema, marketplace e plugin utente. Usala quando l'avviso di deriva compare all'avvio, dopo aver cambiato impostazioni da omp, o su una macchina nuova.
+description: Allinea il setup omp di questa macchina al repo omp-setup (o viceversa) — impostazioni, mcp.json, contesto di sistema, marketplace e plugin utente. Usala quando l'avviso di deriva compare all'avvio, dopo aver cambiato impostazioni da omp, o su una macchina nuova.
 ---
 
 # Sincronizzare il setup omp
@@ -40,7 +40,7 @@ Se le differenze sono di segno misto (una chiave da tenere, un'altra da buttare)
 ## Macchina nuova
 
 ```sh
-git clone <repo> && cd omp-config
+git clone https://github.com/Samseys/omp-setup.git && cd omp-setup
 node scripts/sync.mjs apply
 node scripts/install.mjs     # installa questa skill + l'avviso di deriva
 ```

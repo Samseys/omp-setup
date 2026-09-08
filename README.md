@@ -18,7 +18,7 @@ Non è una copia di `~/.omp/agent/config.yml`: quel file contiene anche percorsi
 ## Su una macchina nuova
 
 ```sh
-git clone <questo repo> && cd omp-config
+git clone https://github.com/Samseys/omp-setup.git && cd omp-setup
 node scripts/sync.mjs apply     # allinea impostazioni, mcp, contesto, plugin
 node scripts/install.mjs        # skill + avviso di deriva
 ```
