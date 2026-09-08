@@ -32,6 +32,7 @@
 	"steeringMode": "all",
 	"followUpMode": "all",
 	"composer.shape": "box",
+	"statusLine.compactThinkingLevel": false,
 	"task.enableEffort": true,
 	"task.maxConcurrency": 4,
 	"task.eager": "preferred",
