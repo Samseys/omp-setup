@@ -1,0 +1,43 @@
+{
+	"modelRoles": {
+		"default": "anthropic/claude-opus-5:medium",
+		"fable": "anthropic/claude-fable-5-1:medium",
+		"task": "anthropic/claude-sonnet-5",
+		"smol": "anthropic/claude-sonnet-5:medium",
+		"slow": "@fable",
+		"tiny": "anthropic/claude-haiku-4-5",
+		"commit": "@task"
+	},
+	"disabledExtensions": [
+		"skill:consult-advisor",
+		"skill:delegate-luna"
+	],
+	"disabledProviders": [
+		"claude"
+	],
+	"browser.headless": false,
+	"cycleOrder": [
+		"default",
+		"fable"
+	],
+	"compaction.methodOrder": [
+		"remote",
+		"soft"
+	],
+	"compaction.thresholdTokens": 200000,
+	"compaction.idleEnabled": true,
+	"compaction.idleTimeoutSeconds": 120,
+	"interruptMode": "wait",
+	"doubleEscapeAction": "tree",
+	"steeringMode": "all",
+	"followUpMode": "all",
+	"composer.shape": "box",
+	"task.enableEffort": true,
+	"task.maxConcurrency": 4,
+	"task.eager": "preferred",
+	"edit.mode": "replace",
+	"personality": "none",
+	"readLineNumbers": true,
+	"treeFilterMode": "no-tools",
+	"retry.maxDelayMs": 0
+}

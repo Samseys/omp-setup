@@ -1,0 +1,19 @@
+{
+	"marketplaces": [
+		{
+			"name": "ponytail",
+			"source": "DietrichGebert/ponytail"
+		},
+		{
+			"name": "claude-community",
+			"source": "anthropics/claude-plugins-community"
+		},
+		{
+			"name": "impeccable",
+			"source": "https://github.com/pbakaus/impeccable.git"
+		}
+	],
+	"plugins": [
+		"eli5@claude-community"
+	]
+}

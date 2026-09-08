@@ -1,0 +1,5 @@
+{
+	"disabledServers": [
+		"node_repl"
+	]
+}
